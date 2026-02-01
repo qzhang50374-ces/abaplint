@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.*/
+mta_archives/
+*.mtar
+resources/
+fiori-tools-*
+.DS_Store
+package-lock.json
+UIAdaptation_*
+changes_preview.js
+sap-ui-cachebuster-info.json
+extended_runnable_file.html
+.*/extended_runnable_file.html
+mock_preview_sapui5.html
+.*/mock_preview_sapui5.html

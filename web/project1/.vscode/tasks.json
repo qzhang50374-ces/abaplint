@@ -1,0 +1,280 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "preview",
+      "label": "▶️ Preview: 标准预览",
+      "detail": "使用 Fiori Tools Preview 功能",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false,
+        "showReuseMessage": false
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "type": "npm",
+      "script": "preview-adaptation",
+      "label": "🎨 Preview: UI 适配模式",
+      "detail": "启用 RTA（运行时适配）功能",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false,
+        "showReuseMessage": false
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "type": "npm",
+      "script": "preview-standalone",
+      "label": "⚡ Preview: 独立模式",
+      "detail": "快速启动，无 FLP 外壳",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false,
+        "showReuseMessage": false
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "type": "npm",
+      "script": "preview-flp",
+      "label": "🚀 Preview: FLP 模式",
+      "detail": "完整的 Fiori Launchpad 预览",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false,
+        "showReuseMessage": false
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "type": "npm",
+      "script": "preview-variants",
+      "label": "📊 Preview: 变体管理",
+      "detail": "支持视图变体和个性化",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false,
+        "showReuseMessage": false
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "type": "npm",
+      "script": "preview-local",
+      "label": "💻 Preview: 本地模式",
+      "detail": "使用本地 UI5 库",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false,
+        "showReuseMessage": false
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "type": "npm",
+      "script": "preview-mock",
+      "label": "🎭 Preview: Mock 模式",
+      "detail": "使用 Mock 数据",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false,
+        "showReuseMessage": false
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "type": "npm",
+      "script": "start",
+      "label": "🏠 Start: FLP 完整模式",
+      "detail": "标准 Fiori Launchpad 启动",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false,
+        "showReuseMessage": false
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "type": "npm",
+      "script": "start-local",
+      "label": "🏠 Start: 本地配置",
+      "detail": "使用本地配置启动",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false,
+        "showReuseMessage": false
+      }
+    },
+    {
+      "type": "npm",
+      "script": "start-noflp",
+      "label": "⚡ Start: 独立模式",
+      "detail": "直接打开应用，无 FLP",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false,
+        "showReuseMessage": false
+      }
+    },
+    {
+      "type": "npm",
+      "script": "start-mock",
+      "label": "🎭 Start: Mock 数据",
+      "detail": "使用 Mock 服务器",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false,
+        "showReuseMessage": false
+      }
+    },
+    {
+      "type": "npm",
+      "script": "build",
+      "label": "📦 Build: 标准构建",
+      "detail": "构建应用到 dist 目录",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": false
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "type": "npm",
+      "script": "build-opt",
+      "label": "📦 Build: 优化构建",
+      "detail": "自包含构建，适合生产",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": false
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "type": "npm",
+      "script": "deploy",
+      "label": "🚢 Deploy: 部署到 SAP",
+      "detail": "构建并部署到 SAP 系统",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": true
+      }
+    },
+    {
+      "type": "npm",
+      "script": "deploy-test",
+      "label": "🧪 Deploy: 测试部署",
+      "detail": "测试模式部署",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "focus": true
+      }
+    },
+    {
+      "type": "npm",
+      "script": "lint",
+      "label": "🔍 Lint: 代码检查",
+      "detail": "运行 ESLint 代码检查",
+      "problemMatcher": ["$eslint-stylish"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "type": "npm",
+      "script": "ts-typecheck",
+      "label": "🔍 TypeScript: 类型检查",
+      "detail": "检查 TypeScript 类型错误",
+      "problemMatcher": ["$tsc"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "type": "npm",
+      "script": "unit-test",
+      "label": "🧪 Test: 单元测试",
+      "detail": "运行 QUnit 单元测试",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "type": "npm",
+      "script": "int-test",
+      "label": "🧪 Test: 集成测试",
+      "detail": "运行 OPA5 集成测试",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    }
+  ]
+}

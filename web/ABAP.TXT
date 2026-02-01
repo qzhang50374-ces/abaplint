@@ -1,0 +1,1435 @@
+CLASS ltc_sd_0051 DEFINITION DEFERRED FOR TESTING.
+CLASS lhc_ZR_SD_0351 DEFINITION INHERITING FROM cl_abap_behavior_handler FRIENDS ltc_sd_0051.
+
+  PUBLIC SECTION.
+    TYPES: BEGIN OF ty_kabt, "型別区分の構造
+             kabtkb TYPE zsdt0209-kabtkb, "型別区分
+             kabtnm TYPE zsdt0209-kabtnm, "型別名
+           END OF ty_kabt,
+           BEGIN OF ty_bsge, "営業部の構造
+             egbucd TYPE zsdsokb6100_rt-egbucd, "営業部
+             egbunm TYPE zsdsokb6100_rt-egbunm, "営業部名称
+             bsgecd TYPE zsdsokb6100_rt-bsgecd, "汎用コード
+             bsgenm TYPE zsdsokb6100_rt-bsgenm, "汎用名称
+           END OF ty_bsge.
+    DATA: glb_it_okb6100 TYPE SORTED TABLE OF zsdsokb6100_rt WITH UNIQUE KEY gtksym egbucd bsgecd kabtkb kisokb, "奨励金実績一覧
+          glb_startdt    TYPE dats,  "開始日
+          glb_enddt      TYPE dats,  "終了日
+          glb_in_bsshkb  TYPE char2, "(50: 部署別, 51: 客先別, 52: 特施工別, 53: 都道府県別)
+          glb_db_0225    TYPE TABLE OF zsdt0225, "ＢＰ奨励金条件明細マスタ
+          glb_db_makt    TYPE TABLE OF makt,     "品目テキスト
+          glb_db_0209    TYPE TABLE OF zsdt0209, "ＢＰ品目分類マスター
+          glb_db_0224    TYPE TABLE OF zsdt0224, "ＢＰ奨励金条件マスタ
+          glb_db_0202    TYPE TABLE OF zsdt0202, "ＢＰ出荷（明細）
+          glb_db_tvkbt   TYPE TABLE OF tvkbt,    "組織単位: 営業所: テキスト
+          glb_it_kabtkb  TYPE SORTED TABLE OF ty_kabt WITH UNIQUE KEY kabtkb,       "型別区分のテーブル
+          glb_it_bsge    TYPE SORTED TABLE OF ty_bsge WITH UNIQUE KEY egbucd bsgecd."営業部のテーブル
+
+    "入力パラメータチェック (OB6110S -> #CHKPRM)
+    METHODS chkprm
+      IMPORTING
+        i_bsshkb TYPE char2   "奨励金集約区分
+        i_frmndt TYPE numc06. "適用月度FROM
+
+    "メイン処理 (OB6110S -> #MAIN)
+    METHODS main
+      IMPORTING
+        i_bstpkb TYPE char2  "奨励金タイプ
+        i_bsshkb TYPE char2. "奨励金集約区分
+
+    "明細 (OB6110S -> #PROCD)
+    METHODS procd
+      IMPORTING
+        i_bstpkb TYPE char2  "奨励金タイプ
+        i_bsshkb TYPE char2. "奨励金集約区分
+
+    "対象条件チェック (OB6110S -> #CHK10/#CHK20)
+    METHODS chk1020
+      IMPORTING
+        i_bsjkkb  TYPE char2    "奨励金条件区分
+        item_0202 TYPE zsdt0202 "ＢＰ出荷（明細）
+        item_0224 TYPE zsdt0224 "ＢＰ奨励金条件マスタ
+      EXPORTING
+        is_valid  TYPE abap_bool.
+
+    "集約条件チェック (OB6110S -> #CHK30)
+    METHODS chk30
+      IMPORTING
+        i_bsshkb  TYPE char2    "奨励金集約区分
+      CHANGING
+        item_0202 TYPE zsdt0202 "ＢＰ出荷（明細）
+        wxbsgec2  TYPE c        "汎用コード
+        wxbsgen2  TYPE c.       "汎用名称
+
+    "ワークファイル書き出し (OB6110S -> #WRTTP10)
+    METHODS wrttp10
+      IMPORTING
+        i_wxgtksym TYPE numc06   "月次更新年月
+        i_wxegbuc2 TYPE c        "営業部コード
+        i_wxegbun2 TYPE c        "営業部名称
+        i_wxbsgec2 TYPE c        "汎用コード
+        i_wxbsgen2 TYPE c        "汎用名称
+        item_0202  TYPE zsdt0202 "ＢＰ出荷（明細）
+        item_0224  TYPE zsdt0224."ＢＰ奨励金条件マスタ
+
+    "丸め処理 (OB6110S -> #PROCMR)
+    METHODS procmr
+      IMPORTING
+        i_bsmtkb    TYPE char2 "奨励金丸め単位
+        i_bsmrkb    TYPE char2 "奨励金丸め区分
+        i_wxbsmrsr  TYPE p     "丸め数量
+      EXPORTING
+        rt_wxbsmrsr TYPE p.    "丸め数量
+
+    "奨励金掛率取得
+    METHODS get_bskart
+      IMPORTING
+                i_kabtkb      TYPE zsdt0202-kabtkb "
+                i_bstpkb      TYPE zsdt0224-bstpkb "
+                i_frmndt      TYPE zsdt0224-frmndt "
+      RETURNING VALUE(bskart) TYPE zsdt0225-bskart."
+
+    "特殊条件区分２０関連前処理 (OB6110S -> #SPKB20)
+    METHODS spkb20.
+
+    " (OB6110S -> #WRTSP20/21/30)
+    METHODS wrtsp_okb6100
+      IMPORTING
+        i_gtksym     TYPE zsdsokb6100_rt-gtksym "月次更新年月
+        i_kabt       TYPE ty_kabt               "型別区分の構造
+        i_egbucd     TYPE zsdsokb6100_rt-egbucd "営業部
+        i_bsegcd     TYPE zsdsokb6100_rt-bsgecd "汎用コード
+        item_0224    TYPE zsdt0224              "ＢＰ奨励金条件マスタ
+        i_pre_bpsrkg TYPE dec31_14
+        i_wxspgenm   TYPE zsdsokb6100_rt-bsgenm "汎用名称
+      CHANGING
+        item_okb6100 TYPE zsdsokb6100_rt.       "奨励金実績一覧
+
+    "明細空データ作成 (OB6110S -> #PROCAD)
+    METHODS procad.
+
+    "小計データ作成 (OB6110S -> #PROCSK)
+    METHODS procsk.
+
+    "総合計データ作成 (OB6110S -> #PROCGK)
+    METHODS procgk.
+
+    "月別計データ作成 (OB6110S -> #PROCDM)
+    METHODS procdm.
+
+    "ワークファイル書き出し（営業所計） (OB6110S -> #WRTTP20)
+    METHODS wrttp20
+      IMPORTING
+        item_okb6100_10 TYPE zsdsokb6100_rt. "奨励金実績一覧
+
+    "ワークファイル書き出し（総合計） (OB6110S -> #WRTTP30)
+    METHODS wrttp30
+      IMPORTING
+        item_okb6100_20 TYPE zsdsokb6100_rt. "奨励金実績一覧
+
+    "ワークファイル書き出し（月別計） (OB6110S -> #WRTTP10M)
+    METHODS wrttp10m
+      IMPORTING
+        item_okb6100 TYPE zsdsokb6100_rt. "奨励金実績一覧
+
+  PRIVATE SECTION.
+
+    METHODS get_instance_authorizations FOR INSTANCE AUTHORIZATION
+      IMPORTING keys REQUEST requested_authorizations FOR zr_sd_0351 RESULT result.
+
+    METHODS get_data FOR MODIFY
+      IMPORTING keys FOR ACTION zr_sd_0351~get_data RESULT result.
+
+ENDCLASS.
+
+CLASS lhc_ZR_SD_0351 IMPLEMENTATION.
+
+  METHOD get_instance_authorizations.
+  ENDMETHOD.
+
+  METHOD get_data.
+    IF keys IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    DATA(i_param) = keys[ 1 ]-%param.
+    DATA(iv_bstpkb) = i_param-iv_bstpkb.
+    DATA(iv_frmndt) = i_param-iv_frmndt.
+
+    "ＢＰ奨励金条件マスタ情報取得
+    SELECT SINGLE MAX( frmndt )
+        FROM zsdt0224
+        WHERE bstpkb = @iv_bstpkb AND frmndt <= @iv_frmndt AND zdelflg <> 'X'
+        INTO @DATA(max_frmndt).
+
+    "ＢＰ奨励金条件マスタ(zsdt0224)から奨励金集約区分(bsshkb)を取得
+    SELECT SINGLE bsshkb
+        FROM zsdt0224
+        WHERE bstpkb = @iv_bstpkb AND frmndt = @max_frmndt AND zdelflg <> 'X'
+        INTO @DATA(db_bsshkb).
+    "レコードが見つからない場合、処理を終了する
+    IF sy-subrc <> 0.
+      RETURN.
+    ENDIF.
+
+    "入力パラメータチェック - #CHKPRM
+    chkprm(
+        EXPORTING
+            i_bsshkb = db_bsshkb "奨励金集約区分
+            i_frmndt = iv_frmndt "適用月度FROM
+    ).
+
+    "メイン処理 - #MAIN
+    main(
+        EXPORTING
+            i_bsshkb = db_bsshkb "奨励金集約区分
+            i_bstpkb = iv_bstpkb "奨励金タイプ
+    ).
+
+    result = VALUE #( FOR item_okb6100 IN glb_it_okb6100
+                      ( %cid = keys[ 1 ]-%cid
+                        %param = item_okb6100 ) ).
+  ENDMETHOD.
+
+  METHOD chkprm.
+    "奨励金集約区分
+    IF i_bsshkb = '10'.     "部署別
+      glb_in_bsshkb = '50'.
+    ELSEIF i_bsshkb = '20'. "客先別
+      glb_in_bsshkb = '51'.
+    ELSEIF i_bsshkb = '30'. "特施工別
+      glb_in_bsshkb = '52'.
+    ELSEIF i_bsshkb = '40'. "都道府県別
+      glb_in_bsshkb = '53'.
+    ENDIF.
+
+    "対象日付の取得
+    "開始日
+    glb_startdt = |{ i_frmndt }01|.
+    "終了日（開始日から一年）
+    CALL FUNCTION 'MONTH_PLUS_DETERMINE'
+      EXPORTING
+        months  = 12
+        olddate = glb_startdt
+      IMPORTING
+        newdate = glb_enddt.
+  ENDMETHOD.
+
+  METHOD main.
+    "明細
+    procd(
+        EXPORTING
+            i_bsshkb = i_bsshkb "奨励金集約区分
+            i_bstpkb = i_bstpkb "奨励金タイプ
+    ).
+
+    "特殊条件区分２０関連前処理
+    spkb20( ).
+
+    "明細空データ作成
+    procad( ).
+
+    "小計データ作成
+    procsk( ).
+
+    "小計データ作成
+    procgk( ).
+
+    "月別計データ作成
+    procdm( ).
+
+  ENDMETHOD.
+
+  METHOD procd.
+    DATA: lt_syortdt_ym TYPE numc06,               "月次更新年月
+          lt_wxbsgec2   TYPE c LENGTH 20 VALUE '', "汎用コード
+          lt_wxbsgen2   TYPE c LENGTH 42 VALUE '', "汎用名称
+          lt_wxegbuc2   TYPE c LENGTH  4 VALUE '', "営業部コード
+          lt_wxegbun2   TYPE c LENGTH 42 VALUE ''. "営業部名称
+
+    "ファイル読み込み
+    "ＢＰ奨励金条件マスタ見出読み込み
+    SELECT *
+        FROM zsdt0202
+        WHERE syordt >= @glb_startdt AND syordt < @glb_enddt AND bpurkg <> 0 AND zdelflg <> 'X'
+        ORDER BY syordt
+        INTO TABLE @glb_db_0202.
+
+    "ＢＰ奨励金条件マスタ(zsdt0224)からデータを取得
+    SELECT *
+        FROM zsdt0224
+        WHERE bstpkb = @i_bstpkb AND bsshkb = @i_bsshkb AND zdelflg <> 'X'
+        ORDER BY frmndt DESCENDING
+        INTO TABLE @glb_db_0224.
+    TEST-SEAM glb_in_bsshkb_51.
+    END-TEST-SEAM.
+    TEST-SEAM glb_in_bsshkb_52.
+    END-TEST-SEAM.
+    TEST-SEAM glb_in_bsshkb_53.
+    END-TEST-SEAM.
+
+    "ＢＰ県コードマスター(zsdt0206)からデータを取得
+    SELECT fukncd, jusykn, znktcd, tikunm
+        FROM zsdt0206
+        FOR ALL ENTRIES IN @glb_db_0202
+        WHERE fukncd = @glb_db_0202-gadscd AND zdelflg <> 'X'
+        INTO TABLE @DATA(db_0206).
+
+    "特施工店マスタ(zsdt0284)からデータを取得
+    SELECT tkykcd, syrbkb, syrbnm
+        FROM zsdt0284
+        FOR ALL ENTRIES IN @glb_db_0202
+        WHERE tkykcd = @glb_db_0202-tkykcd AND zdelflg <> 'X'
+        INTO TABLE @DATA(db_0284).
+
+    "組織単位: 営業所: テキスト(tvkbt)からデータを取得
+    SELECT vkbur, bezei
+        FROM tvkbt
+        FOR ALL ENTRIES IN @glb_db_0202
+        WHERE spras = 'J' AND vkbur = @glb_db_0202-egbucd
+        INTO CORRESPONDING FIELDS OF TABLE @glb_db_tvkbt.
+
+    "ＢＰ奨励金条件明細マスタ(zsdt0225)からデータを取得
+    SELECT *
+        FROM zsdt0225
+        FOR ALL ENTRIES IN @glb_db_0224
+        WHERE bstpkb = @glb_db_0224-bstpkb AND frmndt = @glb_db_0224-frmndt AND zdelflg <> 'X'
+        INTO TABLE @glb_db_0225.
+
+    "品目テキスト(makt)からデータを取得
+    SELECT matnr, maktx
+        FROM makt
+        WHERE spras = 'J'
+        INTO CORRESPONDING FIELDS OF TABLE @glb_db_makt.
+
+    "ＢＰ品目分類マスター(zsdt0209)からデータを取得
+    SELECT kabtkb, MAX( kabtnm ) AS kabtnm
+        FROM zsdt0209
+        WHERE zdelflg <> 'X'
+        GROUP BY kabtkb
+        INTO CORRESPONDING FIELDS OF TABLE @glb_db_0209.
+
+    DATA item_0224 TYPE zsdt0224.
+    LOOP AT glb_db_0202 ASSIGNING FIELD-SYMBOL(<item_0202>).
+
+      "ＢＰ奨励金条件マスタ情報取得
+      IF lt_syortdt_ym <> <item_0202>-syordt+0(6).
+        LOOP AT glb_db_0224 INTO DATA(lt_0224) WHERE frmndt <= <item_0202>-syordt+0(6).
+          item_0224 = lt_0224.
+          EXIT.
+        ENDLOOP.
+
+        "レコードが見つからない場合、次の繰り返しにスキップする
+        IF item_0224 IS INITIAL.
+          CONTINUE.
+        ENDIF.
+      ENDIF.
+      lt_syortdt_ym = <item_0202>-syordt+0(6).
+
+      IF glb_in_bsshkb = '50'.
+        lt_wxbsgec2 = <item_0202>-obsycd.
+        lt_wxbsgen2 = <item_0202>-obsynm.
+      ELSEIF glb_in_bsshkb = '51'.
+        lt_wxbsgec2 = <item_0202>-okykcd.
+        lt_wxbsgen2 = <item_0202>-okyknm.
+      ELSEIF glb_in_bsshkb = '52'.
+        lt_wxbsgec2 = <item_0202>-tkykcd.
+        lt_wxbsgen2 = <item_0202>-tkkjnm.
+      ELSEIF glb_in_bsshkb = '53'.
+        lt_wxbsgec2 = <item_0202>-gadscd.
+        lt_wxbsgen2 = ''.
+      ENDIF.
+
+      "小計名称取得
+      "特施工店別
+      IF glb_in_bsshkb = '52'.
+        "ＢＰ特施工マスター情報取得
+        READ TABLE db_0284
+            INTO DATA(item_0284)
+            WITH KEY tkykcd = lt_wxbsgec2.
+
+        IF sy-subrc = 0.
+          lt_wxegbuc2 = item_0284-syrbkb.
+          lt_wxegbun2 = item_0284-syrbnm.
+        ENDIF.
+      "都道府県別
+      ELSEIF glb_in_bsshkb = '53'.
+        "都道府県別
+        READ TABLE db_0206
+            INTO DATA(item_0206)
+            WITH KEY fukncd = <item_0202>-gadscd.
+
+        IF sy-subrc = 0.
+          lt_wxbsgen2 = item_0206-jusykn.
+          lt_wxegbuc2 = item_0206-znktcd.
+          lt_wxegbun2 = item_0206-tikunm.
+        ENDIF.
+      "その他
+      ELSE.
+        "営業所名取得
+        READ TABLE glb_db_tvkbt
+            INTO DATA(item_tvkbt)
+            WITH KEY vkbur = <item_0202>-egbucd.
+
+        IF sy-subrc = 0.
+          lt_wxegbuc2 = <item_0202>-egbucd.
+          lt_wxegbun2 = item_tvkbt-bezei.
+        ENDIF.
+      ENDIF.
+      TEST-SEAM item_0225_not_found.
+      END-TEST-SEAM.
+      DATA(is_valid) = abap_false.
+      "対象条件チェック - #CHK10
+      chk1020(
+        EXPORTING
+            item_0202 = <item_0202>
+            i_bsjkkb = '10'
+            item_0224 = item_0224
+        IMPORTING
+            is_valid = is_valid
+      ).
+      IF is_valid = abap_false.
+        CONTINUE.
+      ENDIF.
+
+      "除外条件チェック - #CHK20
+      is_valid = abap_true.
+      chk1020(
+        EXPORTING
+            item_0202 = <item_0202>
+            i_bsjkkb = '20'
+            item_0224 = item_0224
+        IMPORTING
+            is_valid = is_valid
+      ).
+      IF is_valid = abap_true.
+        CONTINUE.
+      ENDIF.
+
+      "集約条件チェック - #CHK30
+      chk30(
+        EXPORTING
+            i_bsshkb = i_bsshkb
+        CHANGING
+            item_0202 = <item_0202>
+            wxbsgec2 = lt_wxbsgec2
+            wxbsgen2 = lt_wxbsgen2
+      ).
+
+      "ワークファイル書き出し
+      wrttp10(
+        i_wxgtksym = lt_syortdt_ym
+        i_wxegbuc2 = lt_wxegbuc2
+        i_wxegbun2 = lt_wxegbun2
+        i_wxbsgec2 = lt_wxbsgec2
+        i_wxbsgen2 = lt_wxbsgen2
+        item_0202 = <item_0202>
+        item_0224 = item_0224
+      ).
+    ENDLOOP.
+
+  ENDMETHOD.
+
+  METHOD chk1020.
+    DATA(result) = abap_false.
+    "ポインターセット
+    LOOP AT glb_db_0225 INTO DATA(item_0225) WHERE bsjkkb = i_bsjkkb.
+      result = abap_false.
+
+      "ルート
+      DATA(trim_rtchkb) = condense( item_0225-rtchkb ).
+      "完全一致
+      IF trim_rtchkb <> '' AND trim_rtchkb <> item_0202-routkb.
+        CONTINUE.
+      ENDIF.
+
+      "型別
+      DATA(trim_kachkb) = condense( item_0225-kachkb ).
+      "完全一致
+      IF trim_kachkb <> '' AND trim_kachkb <> item_0202-kabtkb.
+        CONTINUE.
+      ENDIF.
+
+      "旧部署
+      DATA(trim_obchcd) = condense( item_0225-obchcd ).
+      "先頭一致
+      IF trim_obchcd <> '' AND trim_obchcd <> substring( val = item_0202-obsycd off = 0 len = strlen( trim_obchcd ) ).
+        CONTINUE.
+      ENDIF.
+
+      "客先
+      DATA(trim_okchcd) = condense( item_0225-okchcd ).
+      "先頭一致
+      IF trim_okchcd <> '' AND trim_okchcd <> substring( val = item_0202-okykcd off = 0 len = strlen( trim_okchcd ) ).
+        CONTINUE.
+      ENDIF.
+
+      "元請指定
+      DATA(trim_bsjnkb) = condense( item_0225-bsjnkb ).
+      DATA(trim_bsjnnm) = condense( item_0225-bsjnnm ).
+      "部分一致
+      IF trim_bsjnkb = '10' AND trim_bsjnnm <> ''.
+        FIND trim_bsjnnm IN item_0202-mubpnm.
+        IF sy-subrc <> 0.
+          CONTINUE.
+        ENDIF.
+      ENDIF.
+
+      "ＳＡＰ品目コード
+      "先頭一致
+      IF trim_bsjnkb = '30' AND trim_bsjnnm <> ''
+        AND trim_bsjnnm <> substring( val = item_0202-hinmcd off = 0 len = strlen( trim_bsjnnm ) ).
+        CONTINUE.
+      ENDIF.
+
+      "ＳＡＰ品目名称
+      "部分一致
+      IF trim_bsjnkb = '20' AND trim_bsjnnm <> ''.
+        READ TABLE glb_db_makt
+            INTO DATA(item_makt)
+            WITH KEY matnr = item_0202-hinmcd.
+
+        IF sy-subrc = 0.
+          FIND trim_bsjnnm IN item_makt-maktx.
+          IF sy-subrc <> 0.
+            CONTINUE.
+          ENDIF.
+        ENDIF.
+      ENDIF.
+
+      "現場名称
+      "部分一致
+      IF trim_bsjnkb = '40' AND trim_bsjnnm <> ''.
+        FIND trim_bsjnnm IN item_0202-gbbpnm.
+        IF sy-subrc <> 0.
+          CONTINUE.
+        ENDIF.
+      ENDIF.
+
+      result = abap_true.
+      EXIT.
+    ENDLOOP.
+
+    is_valid = result.
+  ENDMETHOD.
+
+  METHOD chk30.
+    "ポインターセット
+    LOOP AT glb_db_0225 INTO DATA(item_0225) WHERE bsjkkb = '30'.
+      DATA(is_valid) = abap_false.
+      DATA(trim_obsycd) = condense( item_0202-obsycd ).
+      DATA(trim_okykcd) = condense( item_0202-okykcd ).
+      "部署別
+      IF i_bsshkb = '10' AND trim_obsycd <> ''.
+        DATA it_obks TYPE TABLE OF char5.
+        it_obks = VALUE #(
+            ( condense( item_0225-obks01 ) ) "旧部署01個別集約
+            ( condense( item_0225-obks02 ) ) "旧部署02個別集約
+            ( condense( item_0225-obks03 ) ) "旧部署03個別集約
+            ( condense( item_0225-obks04 ) ) "旧部署04個別集約
+            ( condense( item_0225-obks05 ) ) "旧部署05個別集約
+            ( condense( item_0225-obks06 ) ) "旧部署06個別集約
+            ( condense( item_0225-obks07 ) ) "旧部署07個別集約
+            ( condense( item_0225-obks08 ) ) "旧部署08個別集約
+            ( condense( item_0225-obks09 ) ) "旧部署09個別集約
+            ( condense( item_0225-obks10 ) ) "旧部署10個別集約
+        ).
+
+        LOOP AT it_obks INTO DATA(item_obks).
+          IF item_obks <> '' AND item_obks = substring( val = trim_obsycd off = 0 len = strlen( item_obks ) ).
+            is_valid = abap_true.
+            EXIT.
+          ENDIF.
+        ENDLOOP.
+        "客先別
+      ELSEIF i_bsshkb = '20' AND trim_okykcd <> ''.
+        DATA it_okks TYPE TABLE OF char5.
+        it_okks = VALUE #(
+            ( condense( item_0225-okks01 ) ) "旧客先01個別集約
+            ( condense( item_0225-okks02 ) ) "旧客先02個別集約
+            ( condense( item_0225-okks03 ) ) "旧客先03個別集約
+            ( condense( item_0225-okks04 ) ) "旧客先04個別集約
+            ( condense( item_0225-okks05 ) ) "旧客先05個別集約
+            ( condense( item_0225-okks06 ) ) "旧客先06個別集約
+            ( condense( item_0225-okks07 ) ) "旧客先07個別集約
+            ( condense( item_0225-okks08 ) ) "旧客先08個別集約
+            ( condense( item_0225-okks09 ) ) "旧客先09個別集約
+            ( condense( item_0225-okks10 ) ) "旧客先10個別集約
+        ).
+
+        LOOP AT it_okks INTO DATA(item_okks).
+          IF item_okks <> '' AND item_okks = substring( val = trim_okykcd off = 0 len = strlen( item_okks ) ).
+            is_valid = abap_true.
+            EXIT.
+          ENDIF.
+        ENDLOOP.
+      ENDIF.
+
+      "集約対象
+      IF is_valid = abap_true.
+        DATA(trim_ebkscd) = condense( item_0225-ebkscd ).
+        IF trim_ebkscd <> ''.
+          item_0202-egbucd = item_0225-ebkscd.
+        ENDIF.
+        wxbsgec2 = item_0225-bskscd.
+        wxbsgen2 = item_0225-bsksnm.
+        EXIT.
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD wrttp10.
+    DATA(mode) = 'WR'.
+    "ファイル読み込み
+    READ TABLE glb_it_okb6100
+        INTO DATA(item_okb6100)
+        WITH KEY gtksym = i_wxgtksym egbucd = i_wxegbuc2 bsgecd = i_wxbsgec2 kabtkb = item_0202-kabtkb kisokb = '10'.
+
+    IF sy-subrc = 0.
+      mode = 'UP'.
+      item_okb6100-egbunm = i_wxegbun2.
+      item_okb6100-bsgenm = i_wxbsgen2.
+      item_okb6100-kabtnm = ''.
+      item_okb6100-bpskkg += item_0202-bpskkg.
+      item_okb6100-bpurkg += item_0202-bpurkg.
+      item_okb6100-bskart = 0.
+      item_okb6100-bpsrkg = 0.
+      item_okb6100-bpskkm += item_0202-bpskkg.
+      item_okb6100-bpurkm += item_0202-bpurkg.
+      item_okb6100-bpsrkm = 0.
+      item_okb6100-bstnkb = item_0224-bstnkb.
+      item_okb6100-bsmrkb = item_0224-bsmrkb.
+      item_okb6100-bsmtkb = item_0224-bsmtkb.
+    ELSE.
+      mode = 'WR'.
+      "パラメータセット
+      item_okb6100 = VALUE #(
+          gtksym = i_wxgtksym
+          egbucd = i_wxegbuc2
+          bsgecd = i_wxbsgec2
+          kabtkb = item_0202-kabtkb
+          kisokb = '10'
+          egbunm = i_wxegbun2
+          bsgenm = i_wxbsgen2
+          kabtnm = ''
+          bpskkg = item_0202-bpskkg
+          bpurkg = item_0202-bpurkg
+          bskart = 0
+          bpsrkg = 0
+          bpskkm = item_0202-bpskkg
+          bpurkm = item_0202-bpurkg
+          bpsrkm = 0
+          bstnkb = item_0224-bstnkb
+          bsmrkb = item_0224-bsmrkb
+          bsmtkb = item_0224-bsmtkb
+      ).
+    ENDIF.
+
+    "型別名取得
+    READ TABLE glb_db_0209
+      INTO DATA(item_0209)
+      WITH KEY kabtkb = item_0202-kabtkb.
+
+    IF sy-subrc = 0.
+      item_okb6100-kabtnm = item_0209-kabtnm.
+    ENDIF.
+
+    "奨励金掛率取得
+    item_okb6100-bskart = get_bskart(
+                                i_kabtkb = item_okb6100-kabtkb
+                                i_frmndt = item_0224-frmndt
+                                i_bstpkb = item_0224-bstpkb
+                            ).
+
+    item_okb6100-bpsrkg = item_okb6100-bpurkg * item_okb6100-bskart / 100.
+    item_okb6100-bpsrkm = item_okb6100-bpsrkg.
+    "ＢＰ仕切金額
+    procmr(
+      EXPORTING
+          i_bsmtkb = item_okb6100-bsmtkb
+          i_bsmrkb = item_okb6100-bsmrkb
+          i_wxbsmrsr = item_okb6100-bpskkm
+      IMPORTING
+          rt_wxbsmrsr = item_okb6100-bpskkg
+    ).
+
+    "ＢＰ売上金額
+    procmr(
+      EXPORTING
+          i_bsmtkb = item_okb6100-bsmtkb
+          i_bsmrkb = item_okb6100-bsmrkb
+          i_wxbsmrsr = item_okb6100-bpurkm
+      IMPORTING
+          rt_wxbsmrsr = item_okb6100-bpurkg
+    ).
+
+    "奨励金金額
+    procmr(
+      EXPORTING
+          i_bsmtkb = item_okb6100-bsmtkb
+          i_bsmrkb = item_okb6100-bsmrkb
+          i_wxbsmrsr = item_okb6100-bpsrkm
+      IMPORTING
+          rt_wxbsmrsr = item_okb6100-bpsrkg
+    ).
+
+    IF mode = 'WR'.
+      INSERT item_okb6100 INTO TABLE glb_it_okb6100.
+    ELSEIF mode = 'UP'.
+      MODIFY TABLE glb_it_okb6100 FROM item_okb6100.
+    ENDIF.
+
+    READ TABLE glb_it_kabtkb
+        TRANSPORTING NO FIELDS
+        WITH KEY kabtkb = item_okb6100-kabtkb.
+
+    IF sy-subrc <> 0.
+      INSERT VALUE #( kabtkb = item_okb6100-kabtkb kabtnm = item_okb6100-kabtnm ) INTO TABLE glb_it_kabtkb.
+    ENDIF.
+
+    READ TABLE glb_it_bsge
+        TRANSPORTING NO FIELDS
+        WITH KEY egbucd = item_okb6100-egbucd bsgecd = item_okb6100-bsgecd.
+
+    IF sy-subrc <> 0.
+      INSERT VALUE #(
+        egbucd = item_okb6100-egbucd
+        egbunm = item_okb6100-egbunm
+        bsgecd = item_okb6100-bsgecd
+        bsgenm = item_okb6100-bsgenm
+      ) INTO TABLE glb_it_bsge.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD procmr.
+    IF i_wxbsmrsr = 0.
+      RETURN.
+    ENDIF.
+
+    "奨励金丸め単位
+    "丸めの精度を決める
+    DATA(wxmtkbsr) = 1.
+    IF i_bsmtkb = '10'. "1円
+      wxmtkbsr = 1.
+    ELSEIF i_bsmtkb = '20'. "10円
+      wxmtkbsr = 10.
+    ELSEIF i_bsmtkb = '30'. "100円
+      wxmtkbsr = 100.
+    ELSEIF i_bsmtkb = '40'. "1000円
+      wxmtkbsr = 1000.
+    ENDIF.
+
+    "丸め区分
+    rt_wxbsmrsr = i_wxbsmrsr / wxmtkbsr.
+
+    "丸めの方式を決める
+    IF i_bsmrkb = '10'.
+      "丸め数量が0以上の場合、切り上げ
+      IF rt_wxbsmrsr >= 0.
+        rt_wxbsmrsr = ceil( rt_wxbsmrsr ) * wxmtkbsr.
+      ELSE. "それ以外の場合、切り捨て
+        rt_wxbsmrsr = floor( rt_wxbsmrsr ) * wxmtkbsr.
+      ENDIF.
+    ELSEIF i_bsmrkb = '20'. "切り捨て
+      rt_wxbsmrsr = trunc( rt_wxbsmrsr ) * wxmtkbsr.
+    ELSEIF i_bsmrkb = '30'. "四捨五入
+      rt_wxbsmrsr = round( val = rt_wxbsmrsr dec = 0 ) * wxmtkbsr.
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD get_bskart.
+    "奨励金掛率取得
+    READ TABLE glb_db_0225
+      INTO DATA(item_0225_1)
+      WITH KEY bstpkb = i_bstpkb frmndt = i_frmndt kkrhkb = i_kabtkb bsjkkb = '40'.
+
+    IF sy-subrc = 0.
+      bskart = item_0225_1-bskart.
+    ELSE.
+    READ TABLE glb_db_0225
+    INTO DATA(item_0225_2)
+    WITH KEY bstpkb = i_bstpkb frmndt = i_frmndt kkrhkb = '' bsjkkb = '40'.
+      IF sy-subrc = 0.
+        bskart = item_0225_2-bskart.
+      ENDIF.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD spkb20.
+    DATA(lt_date) = glb_startdt.
+    "ＢＰ部署マスター情報取得
+
+    SELECT obsycd, okykcd, syokcd
+        FROM zsdt0210
+        FOR ALL ENTRIES IN @glb_db_0202
+        WHERE obsycd = @glb_db_0202-obsycd AND okykcd = @glb_db_0202-okykcd
+        INTO TABLE @DATA(db_0210).
+
+    DO 12 TIMES.
+      DATA(lt_wxsp20fg) = ''.
+      DATA(lt_wxsp21fg) = ''.
+      DATA(lt_wxsp30fg) = ''.
+      DATA: item_0224    TYPE zsdt0224,
+            lt_wxsp20am1 TYPE p LENGTH 15 DECIMALS 2 VALUE 0,
+            lt_wxsp20am2 TYPE p LENGTH 15 DECIMALS 2 VALUE 0,
+            lt_wxsp21amt TYPE p LENGTH 15 DECIMALS 2 VALUE 0,
+            lt_wxsp21am1 TYPE p LENGTH 15 DECIMALS 2 VALUE 0,
+            lt_wxsp21am2 TYPE p LENGTH 15 DECIMALS 2 VALUE 0,
+            lt_wxsp21am3 TYPE p LENGTH 15 DECIMALS 2 VALUE 0,
+            lt_wxsp30am1 TYPE p LENGTH 15 DECIMALS 2 VALUE 0,
+            lt_wxsp30am2 TYPE p LENGTH 15 DECIMALS 2 VALUE 0,
+            lt_wxsp20rt  TYPE p LENGTH 5  DECIMALS 4 VALUE 0,
+            lt_wxsp21rt1 TYPE p LENGTH 5  DECIMALS 4 VALUE 0,
+            lt_wxsp21rt2 TYPE p LENGTH 5  DECIMALS 4 VALUE 0,
+            lt_wxsp21rt3 TYPE p LENGTH 5  DECIMALS 4 VALUE 0,
+            lt_wxsp30rt  TYPE p LENGTH 5  DECIMALS 4 VALUE 0.
+*      CLEAR item_0224.
+      lt_wxsp20am1 = 0.
+      lt_wxsp20am2 = 0.
+      lt_wxsp21amt = 0.
+      lt_wxsp21am1 = 0.
+      lt_wxsp21am2 = 0.
+      lt_wxsp21am3 = 0.
+      lt_wxsp30am1 = 0.
+      lt_wxsp30am2 = 0.
+      lt_wxsp20rt  = 0.
+      lt_wxsp21rt1 = 0.
+      lt_wxsp21rt2 = 0.
+      lt_wxsp21rt3 = 0.
+      lt_wxsp30rt  = 0.
+
+      IF sy-index <> 1.
+        CALL FUNCTION 'MONTH_PLUS_DETERMINE'
+          EXPORTING
+            months  = 1
+            olddate = lt_date
+          IMPORTING
+            newdate = lt_date.
+      ENDIF.
+
+      "ＢＰ奨励金条件マスタ情報取得
+      DATA(lt_date_ym) = lt_date+0(6).
+      LOOP AT glb_db_0224 INTO DATA(lt_0224) WHERE frmndt <= lt_date_ym.
+        item_0224 = lt_0224.
+        EXIT.
+      ENDLOOP.
+
+      IF item_0224 IS INITIAL.
+        CONTINUE.
+      ENDIF.
+
+      "特殊条件対象チェック
+      "東京特殊処理: 20
+      READ TABLE glb_db_0225
+          TRANSPORTING NO FIELDS
+          WITH KEY bstpkb = item_0224-bstpkb frmndt = item_0224-frmndt bsjkkb = '50' bsspkb = '20'.
+      IF sy-subrc = 0.
+        lt_wxsp20fg = '1'.
+      ENDIF.
+
+      "東京特殊処理: 21
+      READ TABLE glb_db_0225
+          TRANSPORTING NO FIELDS
+          WITH KEY bstpkb = item_0224-bstpkb frmndt = item_0224-frmndt bsjkkb = '50' bsspkb = '21'.
+      IF sy-subrc = 0.
+        lt_wxsp21fg = '1'.
+      ENDIF.
+
+      "新潟＋静岡特殊処理：30
+      READ TABLE glb_db_0225
+          TRANSPORTING NO FIELDS
+          WITH KEY bstpkb = item_0224-bstpkb frmndt = item_0224-frmndt bsjkkb = '50' bsspkb = '30'.
+      IF sy-subrc = 0.
+        lt_wxsp30fg = '1'.
+      ENDIF.
+
+      IF lt_wxsp20fg = '' AND lt_wxsp21fg = '' AND lt_wxsp30fg = ''.
+        CONTINUE.
+      ENDIF.
+
+      LOOP AT glb_db_0202 INTO DATA(item_0202) WHERE syordt+0(6) = lt_date_ym.
+        "ＢＰ部署マスター情報取得
+        READ TABLE db_0210
+            INTO DATA(item_0210)
+            WITH KEY obsycd = item_0202-obsycd okykcd = item_0202-okykcd.
+
+        "特殊条件区分２０
+        IF lt_wxsp20fg <> ''.
+          "特殊条件２０合計
+          IF item_0210-syokcd = 'B'.
+            lt_wxsp20am1 += item_0202-bpurkg.
+            lt_wxsp20am2 += item_0202-bpurkg.
+          ELSEIF item_0210-syokcd = 'A'.
+            lt_wxsp20am2 += item_0202-bpurkg.
+          ENDIF.
+        ENDIF.
+
+        "特殊条件区分２１
+        IF lt_wxsp21fg <> ''.
+          "特殊条件２１合計
+          IF item_0210-syokcd = 'B'.
+            lt_wxsp21am1 += item_0202-bpurkg.
+            lt_wxsp21amt += item_0202-bpurkg.
+          ELSEIF item_0210-syokcd = 'A'.
+            lt_wxsp21am2 += item_0202-bpurkg.
+            lt_wxsp21amt += item_0202-bpurkg.
+          ELSEIF item_0210-syokcd = 'E'.
+            lt_wxsp21am3 += item_0202-bpurkg.
+            lt_wxsp21amt += item_0202-bpurkg.
+          ENDIF.
+        ENDIF.
+
+        "特殊条件区分３０
+        IF lt_wxsp30fg <> ''.
+          "特殊条件３０合計
+          IF item_0202-obsycd = '55111' AND item_0210-syokcd = 'A'.
+            lt_wxsp30am1 += item_0202-bpurkg.
+            lt_wxsp30am2 += item_0202-bpurkg.
+          ELSEIF item_0202-obsycd = '55131' AND item_0210-syokcd = 'C'.
+            lt_wxsp30am2 += item_0202-bpurkg.
+          ENDIF.
+        ENDIF.
+      ENDLOOP.
+
+      IF lt_wxsp20am2 <> 0.
+        lt_wxsp20rt = round( val = lt_wxsp20am1 / lt_wxsp20am2 * 100 dec = 0 ) / 100.
+      ENDIF.
+
+      IF lt_wxsp21amt <> 0.
+        lt_wxsp21rt1 = round( val = lt_wxsp21am1 / lt_wxsp21amt * 100 dec = 0 ) / 100.
+        lt_wxsp21rt2 = round( val = lt_wxsp21am2 / lt_wxsp21amt * 100 dec = 0 ) / 100.
+        lt_wxsp21rt3 = ( 1 - lt_wxsp21rt1 - lt_wxsp21rt2 ) / 100.
+      ENDIF.
+
+      IF lt_wxsp30am2 <> 0.
+        lt_wxsp30rt = round( val = lt_wxsp30am1 / lt_wxsp30am2 * 100 dec = 0 ) / 100.
+      ENDIF.
+
+      LOOP AT glb_it_kabtkb INTO DATA(lt_kabtkb).
+        "初期化処理
+        DATA: lt_wxsp20a1   TYPE p LENGTH 15 DECIMALS 2 VALUE 0,
+              lt_wxsp20a2   TYPE p LENGTH 15 DECIMALS 2 VALUE 0,
+              lt_wxsp20genm TYPE c LENGTH 42 VALUE '',
+              lt_wxsp21at   TYPE p LENGTH 15 DECIMALS 2 VALUE 0,
+              lt_wxsp21at1  TYPE p LENGTH 15 DECIMALS 2 VALUE 0,
+              lt_wxsp21at2  TYPE p LENGTH 15 DECIMALS 2 VALUE 0,
+              lt_wxsp21genm TYPE c LENGTH 42 VALUE '',
+              lt_wxsp30a1   TYPE p LENGTH 15 DECIMALS 2 VALUE 0,
+              lt_wxsp30a2   TYPE p LENGTH 15 DECIMALS 2 VALUE 0,
+              lt_wxsp30genm TYPE c LENGTH 42 VALUE ''.
+        lt_wxsp20a1   = 0.
+        lt_wxsp20a2   = 0.
+        lt_wxsp20genm = ''.
+        lt_wxsp21at   = 0.
+        lt_wxsp21at1  = 0.
+        lt_wxsp21at2  = 0.
+        lt_wxsp21genm = ''.
+        lt_wxsp30a1   = 0.
+        lt_wxsp30a2   = 0.
+        lt_wxsp30genm = ''.
+        IF lt_wxsp20fg <> ''.
+          "東部営業一部、二部の東京の売上金額を足す
+          "東部営業一部
+          DATA: item_20a251 TYPE zsdsokb6100_rt,
+                item_20a252 TYPE zsdsokb6100_rt.
+          CLEAR: item_20a251, item_20a252.
+          READ TABLE glb_it_okb6100
+              INTO item_20a251
+              WITH KEY gtksym = lt_date_ym egbucd = 'A251' bsgecd = '01110103' kabtkb = lt_kabtkb-kabtkb kisokb = '10'.
+
+          IF sy-subrc = 0.
+            lt_wxsp20a2 += item_20a251-bpurkm.
+            lt_wxsp20genm = item_20a251-bsgenm.
+          ENDIF.
+
+          "東部営業二部
+          READ TABLE glb_it_okb6100
+              INTO item_20a252
+              WITH KEY gtksym = lt_date_ym egbucd = 'A252' bsgecd = '01110103' kabtkb = lt_kabtkb-kabtkb kisokb = '10'.
+
+          IF sy-subrc = 0.
+            lt_wxsp20a2 += item_20a252-bpurkm.
+            lt_wxsp20genm = item_20a252-bsgenm.
+          ENDIF.
+
+          lt_wxsp20a1 = lt_wxsp20a2 * lt_wxsp20rt.
+
+          "東部営業一部更新
+          wrtsp_okb6100(
+            EXPORTING
+                i_gtksym = lt_date_ym
+                i_egbucd = 'A251'
+                i_bsegcd = '01110103'
+                i_kabt = lt_kabtkb
+                item_0224 = item_0224
+                i_pre_bpsrkg = lt_wxsp20a2 * lt_wxsp20rt
+                i_wxspgenm = lt_wxsp20genm
+            CHANGING item_okb6100 = item_20a251
+          ).
+
+          "東部営業二部更新
+          wrtsp_okb6100(
+            EXPORTING
+                i_gtksym = lt_date_ym
+                i_egbucd = 'A252'
+                i_bsegcd = '01110103'
+                i_kabt = lt_kabtkb
+                item_0224 = item_0224
+                i_pre_bpsrkg = lt_wxsp20a2 - lt_wxsp20a1
+                i_wxspgenm = lt_wxsp20genm
+            CHANGING item_okb6100 = item_20a252
+          ).
+
+        ENDIF.
+
+        IF lt_wxsp21fg <> ''.
+          DATA: item_21a251 TYPE zsdsokb6100_rt,
+                item_21a257 TYPE zsdsokb6100_rt,
+                item_21a252 TYPE zsdsokb6100_rt.
+          CLEAR: item_21a251, item_21a257, item_21a252.
+          "東部営業一部、二部の東京の売上金額を足す
+          "東部営業一部KAKUNIN
+          READ TABLE glb_it_okb6100
+              INTO item_21a251
+              WITH KEY gtksym = lt_date_ym egbucd = 'A251' bsgecd = '01110103' kabtkb = lt_kabtkb-kabtkb kisokb = '10'.
+
+          IF sy-subrc = 0.
+            lt_wxsp21at += item_21a251-bpurkm.
+            lt_wxsp21genm = item_21a251-bsgenm.
+          ENDIF.
+
+          "東部営業二部
+          READ TABLE glb_it_okb6100
+              INTO item_21a257
+              WITH KEY gtksym = lt_date_ym egbucd = 'A257' bsgecd = '01110103' kabtkb = lt_kabtkb-kabtkb kisokb = '10'.
+
+          IF sy-subrc = 0.
+            lt_wxsp21at += item_21a257-bpurkm.
+            lt_wxsp21genm = item_21a257-bsgenm.
+          ENDIF.
+
+          "東部営業三部
+          READ TABLE glb_it_okb6100
+              INTO item_21a252
+              WITH KEY gtksym = lt_date_ym egbucd = 'A252' bsgecd = '01110103' kabtkb = lt_kabtkb-kabtkb kisokb = '10'.
+
+          IF sy-subrc = 0.
+            lt_wxsp21at += item_21a252-bpurkm.
+            lt_wxsp21genm = item_21a252-bsgenm.
+          ENDIF.
+
+          lt_wxsp21at1 = lt_wxsp21at * lt_wxsp21rt1.
+          lt_wxsp21at2 = lt_wxsp21at * lt_wxsp21rt2.
+
+          "東部営業一部更新
+          wrtsp_okb6100(
+            EXPORTING
+                i_gtksym = lt_date_ym
+                i_egbucd = 'A251'
+                i_bsegcd = '01110103'
+                i_kabt = lt_kabtkb
+                item_0224 = item_0224
+                i_pre_bpsrkg = lt_wxsp21at * lt_wxsp21rt1
+                i_wxspgenm = lt_wxsp21genm
+            CHANGING item_okb6100 = item_21a251
+          ).
+
+          "東部営業二部更新
+          wrtsp_okb6100(
+            EXPORTING
+                i_gtksym = lt_date_ym
+                i_egbucd = 'A257'
+                i_bsegcd = '01110103'
+                i_kabt = lt_kabtkb
+                item_0224 = item_0224
+                i_pre_bpsrkg = lt_wxsp21at * lt_wxsp21rt2
+                i_wxspgenm = lt_wxsp21genm
+            CHANGING item_okb6100 = item_21a257
+          ).
+
+          "東部営業三部更新
+          wrtsp_okb6100(
+            EXPORTING
+                i_gtksym = lt_date_ym
+                i_egbucd = 'A252'
+                i_bsegcd = '01110103'
+                i_kabt = lt_kabtkb
+                item_0224 = item_0224
+                i_pre_bpsrkg = lt_wxsp21at - lt_wxsp21at1 - lt_wxsp21at2
+                i_wxspgenm = lt_wxsp21genm
+            CHANGING item_okb6100 = item_21a252
+          ).
+        ENDIF.
+
+        IF lt_wxsp30fg <> ''.
+          DATA: item_30a252 TYPE zsdsokb6100_rt,
+                item_30a253 TYPE zsdsokb6100_rt.
+          CLEAR: item_30a252, item_30a253.
+          "東部営業二部、中部の東京の売上金額を足す
+          "東部営業二部
+          READ TABLE glb_it_okb6100
+              INTO item_30a252
+              WITH KEY gtksym = lt_date_ym egbucd = 'A252' bsgecd = '01110104' kabtkb = lt_kabtkb-kabtkb kisokb = '10'.
+
+          IF sy-subrc = 0.
+            lt_wxsp30a2 += item_30a252-bpurkm.
+            lt_wxsp30genm = item_30a252-bsgenm.
+          ENDIF.
+
+          "中部営業
+          READ TABLE glb_it_okb6100
+              INTO item_30a253
+              WITH KEY gtksym = lt_date_ym egbucd = 'A253' bsgecd = '01110104' kabtkb = lt_kabtkb-kabtkb kisokb = '10'.
+
+          IF sy-subrc = 0.
+            lt_wxsp30a2 += item_30a253-bpurkm.
+            lt_wxsp30genm = item_30a253-bsgenm.
+          ENDIF.
+
+          lt_wxsp30a1 = lt_wxsp30a2 * lt_wxsp30rt.
+
+          "東部営業二部更新
+          wrtsp_okb6100(
+            EXPORTING
+                i_gtksym = lt_date_ym
+                i_egbucd = 'A252'
+                i_bsegcd = '01110104'
+                i_kabt = lt_kabtkb
+                item_0224 = item_0224
+                i_pre_bpsrkg = lt_wxsp30a2 * lt_wxsp30rt
+                i_wxspgenm = lt_wxsp30genm
+            CHANGING item_okb6100 = item_30a252
+          ).
+
+          "東部営業中部更新
+          wrtsp_okb6100(
+            EXPORTING
+                i_gtksym = lt_date_ym
+                i_egbucd = 'A253'
+                i_bsegcd = '01110104'
+                i_kabt = lt_kabtkb
+                item_0224 = item_0224
+                i_pre_bpsrkg = lt_wxsp30a2 - lt_wxsp30a1
+                i_wxspgenm = lt_wxsp30genm
+            CHANGING item_okb6100 = item_30a253
+          ).
+        ENDIF.
+      ENDLOOP.
+
+    ENDDO.
+  ENDMETHOD.
+
+  METHOD wrtsp_okb6100.
+    DATA(mode) = 'UP'.
+    IF item_okb6100 IS INITIAL.
+      mode = 'WR'.
+      item_okb6100 = VALUE #(
+          gtksym = i_gtksym
+          kisokb = '10'
+          egbucd = i_egbucd
+          egbunm = ''
+          bsgecd = i_bsegcd
+          bsgenm = i_wxspgenm
+          kabtkb = i_kabt-kabtkb
+          kabtnm = i_kabt-kabtnm
+          bpskkg = 0
+          bpurkg = 0
+          bskart = 0
+          bpsrkg = 0
+          bpskkm = 0
+          bpurkm = 0
+          bpsrkm = 0
+          bstnkb = item_0224-bstnkb
+          bsmrkb = item_0224-bsmrkb
+          bsmtkb = item_0224-bsmtkb
+      ).
+
+      "営業所名取得
+      READ TABLE glb_db_tvkbt
+          INTO DATA(item_tvkbt)
+          WITH KEY vkbur = item_okb6100-egbucd.
+      item_okb6100-egbunm = item_tvkbt-bezei.
+
+      "奨励金掛率取得
+      item_okb6100-bskart = get_bskart(
+                              i_kabtkb = item_okb6100-kabtkb
+                              i_bstpkb = item_0224-bstpkb
+                              i_frmndt = item_0224-frmndt
+                           ).
+    ENDIF.
+
+    item_okb6100-bpsrkm = i_pre_bpsrkg * item_okb6100-bskart / 100.
+
+    "丸め処理
+    "ＢＰ仕切金額
+    procmr(
+        EXPORTING
+            i_bsmtkb = item_okb6100-bsmtkb
+            i_bsmrkb = item_okb6100-bsmrkb
+            i_wxbsmrsr = item_okb6100-bpsrkm
+        IMPORTING
+            rt_wxbsmrsr = item_okb6100-bpsrkg
+    ).
+
+    "ＢＰ売上金額
+    procmr(
+        EXPORTING
+            i_bsmtkb = item_okb6100-bsmtkb
+            i_bsmrkb = item_okb6100-bsmrkb
+            i_wxbsmrsr = item_okb6100-bpurkm
+        IMPORTING
+            rt_wxbsmrsr = item_okb6100-bpurkg
+    ).
+
+    "奨励金金額
+    procmr(
+        EXPORTING
+            i_bsmtkb = item_okb6100-bsmtkb
+            i_bsmrkb = item_okb6100-bsmrkb
+            i_wxbsmrsr = item_okb6100-bpsrkm
+        IMPORTING
+            rt_wxbsmrsr = item_okb6100-bpsrkg
+    ).
+
+    "更新処理
+    IF mode = 'WR'.
+      INSERT item_okb6100 INTO TABLE glb_it_okb6100.
+    ELSEIF mode = 'UP'.
+      MODIFY TABLE glb_it_okb6100 FROM item_okb6100.
+    ENDIF.
+
+    READ TABLE glb_it_bsge
+        TRANSPORTING NO FIELDS
+        WITH KEY egbucd = item_okb6100-egbucd bsgecd = item_okb6100-bsgecd.
+
+    IF sy-subrc <> 0.
+      INSERT VALUE #(
+        egbucd = item_okb6100-egbucd
+        egbunm = item_okb6100-egbunm
+        bsgecd = item_okb6100-bsgecd
+        bsgenm = item_okb6100-bsgenm
+      ) INTO TABLE glb_it_bsge.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD procad.
+    DATA(lt_date) = glb_startdt.
+    DO 12 TIMES.
+      IF sy-index <> 1.
+        CALL FUNCTION 'MONTH_PLUS_DETERMINE'
+          EXPORTING
+            months  = 1
+            olddate = lt_date
+          IMPORTING
+            newdate = lt_date.
+      ENDIF.
+      DATA(lt_date_ym) = lt_date+0(6).
+      LOOP AT glb_it_bsge INTO DATA(item_bsge).
+        LOOP AT glb_it_kabtkb INTO DATA(item_kabt).
+          READ TABLE glb_it_okb6100
+              TRANSPORTING NO FIELDS
+              WITH KEY gtksym = lt_date_ym
+                       egbucd = item_bsge-egbucd
+                       bsgecd = item_bsge-bsgecd
+                       kabtkb = item_kabt-kabtkb
+                       kisokb = 10.
+
+          IF sy-subrc <> 0.
+            "書き出し
+            INSERT VALUE #(
+               gtksym = lt_date_ym
+               egbucd = item_bsge-egbucd
+               bsgecd = item_bsge-bsgecd
+               kabtkb = item_kabt-kabtkb
+               kisokb = 10
+               egbunm = item_bsge-egbunm
+               bsgenm = item_bsge-bsgenm
+               kabtnm = item_kabt-kabtnm
+               bpskkg = 0
+               bpurkg = 0
+               bskart = 0
+               bpsrkg = 0
+               bpskkm = 0
+               bpurkm = 0
+               bpsrkm = 0
+               bstnkb = ''
+               bsmrkb = ''
+               bsmtkb = ''
+            ) INTO TABLE glb_it_okb6100.
+          ENDIF.
+        ENDLOOP.
+      ENDLOOP.
+    ENDDO.
+  ENDMETHOD.
+
+  METHOD procsk.
+    LOOP AT glb_it_okb6100 INTO DATA(item_okb6100_10) WHERE kisokb = '10'.
+      wrttp20( item_okb6100_10 = item_okb6100_10 ).
+      wrttp10m( item_okb6100 = item_okb6100_10 ).
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD procgk.
+    LOOP AT glb_it_okb6100 INTO DATA(item_okb6100_20) WHERE kisokb = '20'.
+      wrttp30( item_okb6100_20 = item_okb6100_20 ).
+      wrttp10m( item_okb6100 = item_okb6100_20 ).
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD procdm.
+    LOOP AT glb_it_okb6100 INTO DATA(item_okb6100_30) WHERE kisokb = '30'.
+      wrttp10m( item_okb6100 = item_okb6100_30 ).
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD wrttp20.
+    DATA item_okb6100_20 TYPE zsdsokb6100_rt.
+    CLEAR item_okb6100_20.
+
+    READ TABLE glb_it_okb6100
+        INTO item_okb6100_20
+        WITH KEY gtksym = item_okb6100_10-gtksym
+                 egbucd = item_okb6100_10-egbucd
+                 kabtkb = item_okb6100_10-kabtkb
+                 kisokb = '20'
+                 bsgecd = '99999999'.
+
+    item_okb6100_20-gtksym = item_okb6100_10-gtksym.
+    item_okb6100_20-egbucd = item_okb6100_10-egbucd.
+    item_okb6100_20-kabtkb = item_okb6100_10-kabtkb.
+    item_okb6100_20-kabtnm = item_okb6100_10-kabtnm.
+    item_okb6100_20-kisokb = '20'.
+    item_okb6100_20-bsgecd = '99999999'.
+    item_okb6100_20-bsgenm = ''.
+    item_okb6100_20-egbunm = item_okb6100_10-egbunm.
+    item_okb6100_20-bskart = item_okb6100_10-bskart.
+    item_okb6100_20-bstnkb = item_okb6100_10-bstnkb.
+    item_okb6100_20-bsmrkb = item_okb6100_10-bsmrkb.
+    item_okb6100_20-bsmtkb = item_okb6100_10-bsmtkb.
+    item_okb6100_20-bpskkg += item_okb6100_10-bpskkg.
+    item_okb6100_20-bpurkg += item_okb6100_10-bpurkg.
+    item_okb6100_20-bpsrkg += item_okb6100_10-bpsrkg.
+    item_okb6100_20-bpskkm += item_okb6100_10-bpskkm.
+    item_okb6100_20-bpurkm += item_okb6100_10-bpurkm.
+    item_okb6100_20-bpsrkm += item_okb6100_10-bpsrkm.
+
+    IF item_okb6100_20-bstnkb = '10' OR item_okb6100_20-bstnkb = '20'.
+      "ＢＰ仕切金額
+      procmr(
+        EXPORTING
+            i_bsmtkb = item_okb6100_20-bsmtkb
+            i_bsmrkb = item_okb6100_20-bsmrkb
+            i_wxbsmrsr = item_okb6100_20-bpskkm
+        IMPORTING
+            rt_wxbsmrsr = item_okb6100_20-bpskkg
+      ).
+
+      "ＢＰ売上金額
+      procmr(
+        EXPORTING
+            i_bsmtkb = item_okb6100_20-bsmtkb
+            i_bsmrkb = item_okb6100_20-bsmrkb
+            i_wxbsmrsr = item_okb6100_20-bpurkm
+        IMPORTING
+            rt_wxbsmrsr = item_okb6100_20-bpurkg
+      ).
+
+      "奨励金金額
+      procmr(
+        EXPORTING
+            i_bsmtkb = item_okb6100_20-bsmtkb
+            i_bsmrkb = item_okb6100_20-bsmrkb
+            i_wxbsmrsr = item_okb6100_20-bpsrkm
+        IMPORTING
+            rt_wxbsmrsr = item_okb6100_20-bpsrkg
+      ).
+    ENDIF.
+
+    IF sy-subrc = 0.
+      MODIFY TABLE glb_it_okb6100 FROM item_okb6100_20.
+    ELSE.
+      INSERT item_okb6100_20 INTO TABLE glb_it_okb6100.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD wrttp30.
+    DATA item_okb6100_30 TYPE zsdsokb6100_rt.
+    CLEAR item_okb6100_30.
+
+    READ TABLE glb_it_okb6100
+        INTO item_okb6100_30
+        WITH KEY gtksym = item_okb6100_20-gtksym
+                 egbucd = '9999'
+                 kabtkb = item_okb6100_20-kabtkb
+                 kisokb = '30'
+                 bsgecd = '99999999'.
+
+    item_okb6100_30-gtksym = item_okb6100_20-gtksym.
+    item_okb6100_30-kabtkb = item_okb6100_20-kabtkb.
+    item_okb6100_30-kabtnm = item_okb6100_20-kabtnm.
+    item_okb6100_30-kisokb = '30'.
+    item_okb6100_30-egbucd = '9999'.
+    item_okb6100_30-egbunm = '総合計'.
+    item_okb6100_30-bsgecd = '99999999'.
+    item_okb6100_30-bsgenm = ''.
+    item_okb6100_30-bskart = item_okb6100_20-bskart.
+    item_okb6100_30-bstnkb = item_okb6100_20-bstnkb.
+    item_okb6100_30-bsmrkb = item_okb6100_20-bsmrkb.
+    item_okb6100_30-bsmtkb = item_okb6100_20-bsmtkb.
+    item_okb6100_30-bpskkg += item_okb6100_20-bpskkg.
+    item_okb6100_30-bpurkg += item_okb6100_20-bpurkg.
+    item_okb6100_30-bpsrkg += item_okb6100_20-bpsrkg.
+    item_okb6100_30-bpskkm += item_okb6100_20-bpskkm.
+    item_okb6100_30-bpurkm += item_okb6100_20-bpurkm.
+    item_okb6100_30-bpsrkm += item_okb6100_20-bpsrkm.
+
+    IF sy-subrc = 0.
+      MODIFY TABLE glb_it_okb6100 FROM item_okb6100_30.
+    ELSE.
+      INSERT item_okb6100_30 INTO TABLE glb_it_okb6100.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD wrttp10m.
+    IF item_okb6100-kabtkb = ''.
+      RETURN.
+    ENDIF.
+    DATA item_okb6100_10m TYPE zsdsokb6100_rt.
+    CLEAR item_okb6100_10m.
+
+    READ TABLE glb_it_okb6100
+        INTO item_okb6100_10m
+        WITH KEY gtksym = item_okb6100-gtksym
+                 egbucd = item_okb6100-egbucd
+                 kabtkb = ''
+                 kisokb = item_okb6100-kisokb
+                 bsgecd = item_okb6100-bsgecd.
+
+    item_okb6100_10m-gtksym = item_okb6100-gtksym.
+    item_okb6100_10m-kabtkb = ''.
+    item_okb6100_10m-kabtnm = '月別'.
+    item_okb6100_10m-kisokb = item_okb6100-kisokb.
+    item_okb6100_10m-egbucd = item_okb6100-egbucd.
+    item_okb6100_10m-egbunm = item_okb6100-egbunm.
+    item_okb6100_10m-bsgecd = item_okb6100-bsgecd.
+    item_okb6100_10m-bsgenm = item_okb6100-bsgenm.
+    item_okb6100_10m-bskart = item_okb6100-bskart.
+    item_okb6100_10m-bstnkb = item_okb6100-bstnkb.
+    item_okb6100_10m-bsmrkb = item_okb6100-bsmrkb.
+    item_okb6100_10m-bsmtkb = item_okb6100-bsmtkb.
+    item_okb6100_10m-bpskkg += item_okb6100-bpskkg.
+    item_okb6100_10m-bpurkg += item_okb6100-bpurkg.
+    item_okb6100_10m-bpsrkg += item_okb6100-bpsrkg.
+    item_okb6100_10m-bpskkm += item_okb6100-bpskkm.
+    item_okb6100_10m-bpurkm += item_okb6100-bpurkm.
+    item_okb6100_10m-bpsrkm += item_okb6100-bpsrkm.
+
+    IF sy-subrc = 0.
+      MODIFY TABLE glb_it_okb6100 FROM item_okb6100_10m.
+    ELSE.
+      INSERT item_okb6100_10m INTO TABLE glb_it_okb6100.
+    ENDIF.
+  ENDMETHOD.
+
+ENDCLASS.

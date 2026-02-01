@@ -1,0 +1,55 @@
+<mvc:View
+    controllerName="zzabaplint.controller.Main"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:l="sap.ui.layout"
+    xmlns:core="sap.ui.core"
+    displayBlock="true">
+    <Page id="page" title="{i18n>mainTitle}" showHeader="true">
+                <content>
+                    <l:Splitter height="100%">
+                        <l:contentAreas>
+                            <!-- Editor Area with Tabs -->
+                            <l:Splitter orientation="Horizontal">
+                                <l:contentAreas>
+                                    <!-- Welcome/Help Panel (left side) -->
+                                    <ScrollContainer
+                                        width="320px"
+                                        height="100%"
+                                        vertical="true"
+                                        horizontal="false">
+                                        <VBox class="sapUiSmallMargin">
+                                            <Title text="{i18n>mainWelcome}" level="H2"/>
+                                            <Text text="ABAP Lint Editor with full abaplint engine support." class="sapUiSmallMarginTop"/>
+                                            <VBox class="sapUiSmallMarginTop">
+                                                <Title text="Features" level="H3"/>
+                                                <List>
+                                                    <StandardListItem title="Full abaplint Rules" description="Complete rule checking with custom configuration"/>
+                                                    <StandardListItem title="RAP Support" description="Behavior Handler and CDS view validation"/>
+                                                    <StandardListItem title="Multiple Files" description="Main class, locals, test classes support"/>
+                                                    <StandardListItem title="Real-time Validation" description="Instant feedback as you type"/>
+                                                </List>
+                                            </VBox>
+                                            <VBox class="sapUiSmallMarginTop">
+                                                <Title text="Custom Rules" level="H3"/>
+                                                <Text text="• ABAP v758 syntax&#10;• Clean ABAP standards&#10;• RAP-specific rules&#10;• Test class exceptions" class="sapUiSmallMarginTop"/>
+                                            </VBox>
+                                            <VBox class="sapUiSmallMarginTop">
+                                                <Button text="Start Playground Server" press="onStartPlayground" type="Emphasized" width="100%"/>
+                                                <Text text="Port: 8090" class="sapUiTinyMarginTop" />
+                                            </VBox>
+                                        </VBox>
+                                    </ScrollContainer>
+                                    
+                                    <!-- Main Editor Area - Embedded Playground -->
+                                    <VBox width="100%" height="100%">
+                                        <core:HTML content='&lt;iframe id="playgroundFrame" src="http://localhost:8090" style="width:100%;height:100%;border:none;min-height:600px;"&gt;&lt;/iframe&gt;' height="100%" width="100%"/>
+                                    </VBox>
+                                </l:contentAreas>
+                            </l:Splitter>
+                            
+                        </l:contentAreas>
+                    </l:Splitter>
+                </content>
+            </Page>
+</mvc:View>

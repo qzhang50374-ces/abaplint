@@ -1,0 +1,20 @@
+specVersion: "3.1"
+metadata:
+  name: com.abaplint.editor-deploy
+type: application
+builder:
+  customTasks:
+    - name: deploy-to-abap
+      afterTask: generateCachebusterInfo
+      configuration:
+        target:
+          url: http://localhost:8000
+          client: "100"
+          auth: "basic"
+        app:
+          name: ZABAPLINT
+          package: $TMP
+          transport: ""
+        exclude:
+          - /test/**
+          - /localService/**

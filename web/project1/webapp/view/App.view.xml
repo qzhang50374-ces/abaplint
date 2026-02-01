@@ -1,0 +1,16 @@
+<mvc:View
+    controllerName="zzabaplint.controller.App"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    displayBlock="true"
+    height="100%">
+    <App id="app" height="100%">
+        <pages>
+            <Page id="mainPage" showHeader="false">
+                <content>
+                    <NavContainer id="navContainer" height="100%"/>
+                </content>
+            </Page>
+        </pages>
+    </App>
+</mvc:View>

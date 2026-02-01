@@ -34,8 +34,8 @@ function main(): void {
   dock.addWidget(new WelcomeWidget());
   FileSystem.openFile("file:///abaplint.json");
   FileSystem.openFile("file:///zfoo.ddls.asddls");
-  FileSystem.openFile("file:///zfoo.prog.screen_0100.abap");
-  FileSystem.openFile("file:///zfoo.prog.abap");
+  FileSystem.openFile("file:///zfoo.clas.locals_imp.abap");  // RAP 代码粘贴到这里
+  FileSystem.openFile("file:///zfoo.clas.testclasses.abap"); // 测试类粘贴到这里
 
   const left = new BoxPanel({direction: "top-to-bottom", spacing: 0});
   left.id = "left";

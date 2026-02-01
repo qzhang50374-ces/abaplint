@@ -1,0 +1,62 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "🚀 Launch: Preview",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:8080/preview.html",
+      "webRoot": "${workspaceFolder}/webapp",
+      "preLaunchTask": "▶️ Preview: 标准预览",
+      "runtimeArgs": [
+        "--disable-web-security",
+        "--user-data-dir=${workspaceFolder}/.chrome-debug"
+      ]
+    },
+    {
+      "name": "🎨 Launch: Preview with RTA",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:8080/preview.html?fiori-tools-rta-mode=true",
+      "webRoot": "${workspaceFolder}/webapp",
+      "preLaunchTask": "🎨 Preview: UI 适配模式",
+      "runtimeArgs": [
+        "--disable-web-security",
+        "--user-data-dir=${workspaceFolder}/.chrome-debug"
+      ]
+    },
+    {
+      "name": "🏠 Launch: FLP",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:8080/test/flp.html#app-preview",
+      "webRoot": "${workspaceFolder}/webapp",
+      "preLaunchTask": "🏠 Start: FLP 完整模式",
+      "runtimeArgs": [
+        "--disable-web-security",
+        "--user-data-dir=${workspaceFolder}/.chrome-debug"
+      ]
+    },
+    {
+      "name": "⚡ Launch: Standalone",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:8080/index.html",
+      "webRoot": "${workspaceFolder}/webapp",
+      "preLaunchTask": "⚡ Preview: 独立模式",
+      "runtimeArgs": [
+        "--disable-web-security",
+        "--user-data-dir=${workspaceFolder}/.chrome-debug"
+      ]
+    },
+    {
+      "name": "🔗 Attach: Chrome",
+      "type": "chrome",
+      "request": "attach",
+      "port": 9222,
+      "webRoot": "${workspaceFolder}/webapp",
+      "urlFilter": "http://localhost:8080/*"
+    }
+  ],
+  "compounds": []
+}

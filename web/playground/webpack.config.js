@@ -4,18 +4,47 @@ const path = require("path");
 const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 
-module.exports = ({mode} = {mode: "development"}) => ({
-  entry: {
-    "app": "./src/index.ts",
-    "editor.worker": "monaco-editor/esm/vs/editor/editor.worker.js",
-    "json.worker": "monaco-editor/esm/vs/language/json/json.worker.js",
-  },
-  mode,
-  output: {
-    path: path.join(__dirname, "build"),
-    filename: "[name].bundle.js",
-    globalObject: "self",
-  },
+module.exports = ({mode} = {mode: "development"}) => {
+  const isProduction = mode === "production";
+  
+  return {
+    entry: {
+      "app": "./src/index.ts",
+      "editor.worker": "monaco-editor/esm/vs/editor/editor.worker.js",
+      "json.worker": "monaco-editor/esm/vs/language/json/json.worker.js",
+    },
+    mode,
+    output: {
+      path: path.join(__dirname, "build"),
+      filename: isProduction ? "[name].[contenthash:8].bundle.js" : "[name].bundle.js",
+      chunkFilename: isProduction ? "[name].[contenthash:8].chunk.js" : "[name].chunk.js",
+      globalObject: "self",
+      clean: true,
+    },
+    optimization: isProduction ? {
+      minimize: true,
+      splitChunks: {
+        chunks: "all",
+        cacheGroups: {
+          monaco: {
+            test: /[\\/]node_modules[\\/]monaco-editor[\\/]/,
+            name: "monaco",
+            priority: 20,
+          },
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: "vendors",
+            priority: 10,
+          },
+        },
+      },
+      runtimeChunk: "single",
+    } : undefined,
+    performance: isProduction ? {
+      hints: "warning",
+      maxEntrypointSize: 512000,
+      maxAssetSize: 512000,
+    } : false,
   devServer: {
     static: {
       directory: path.join(__dirname, "public"),
@@ -60,12 +89,25 @@ module.exports = ({mode} = {mode: "development"}) => ({
       },
     ],
   },
-  plugins: [
-    new HtmlWebpackPlugin({
-      template: "public/index.html",
-    }),
-    new webpack.ProvidePlugin({
-      Buffer: ["buffer", "Buffer"],
-    }),
-  ],
-});
+    plugins: [
+      new HtmlWebpackPlugin({
+        template: "public/index.html",
+        minify: isProduction ? {
+          removeComments: true,
+          collapseWhitespace: true,
+          removeRedundantAttributes: true,
+          useShortDoctype: true,
+          removeEmptyAttributes: true,
+          removeStyleLinkTypeAttributes: true,
+          keepClosingSlash: true,
+          minifyJS: true,
+          minifyCSS: true,
+          minifyURLs: true,
+        } : false,
+      }),
+      new webpack.ProvidePlugin({
+        Buffer: ["buffer", "Buffer"],
+      }),
+    ],
+  };
+};
